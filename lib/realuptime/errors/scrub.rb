@@ -1,0 +1,150 @@
+# frozen_string_literal: true
+
+module Realuptime
+  module Errors
+    # PII scrub-by-default, client-side (docs/errors-plan.md, "PII
+    # scrub-by-default, specified"). A byte-for-byte port of
+    # packages/errors-js/scrub.ts and packages/errors-py/realuptime_errors.py's
+    # scrub half; the shared vectors (scrub-vectors.json, vendored into this
+    # gem and asserted byte-identical to packages/errors-js/scrub-vectors.json
+    # by test/vendored_vectors_test.rb) pin all four implementations -- JS,
+    # Python, this one, and the server's second net -- to identical output.
+    #
+    # The five pattern rules, in the shared order:
+    #   1. JWT three-dot shape
+    #   2. prefixed keys (sk_/pk_/rk_/ghp_/gho_/ghs_/xox?_/rua_/rue_/ru_live_)
+    #   3. card-shaped digit runs, 13-19 digits, Luhn-checked
+    #   4. long hex runs (32+)
+    #   5. long base64-ish runs (40+)
+    #
+    # REMOVAL (value replaced whole) unless allow-listed by name:
+    #   - headers authorization / proxy-authorization / cookie / set-cookie
+    #   - identity (wire v2): user.email and user.username. user.id is NOT
+    #     removed; an opaque id in the customer's own key space is not
+    #     contact data, and it is what makes "how many users hit this"
+    #     answerable.
+    module Scrub
+      SCRUBBED = "[scrubbed]"
+
+      REMOVED_HEADERS = %w[authorization proxy-authorization cookie set-cookie].freeze
+      REMOVED_USER_FIELDS = %w[user.email user.username].freeze
+
+      JWT_RE = /\beyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\b/.freeze
+      PREFIXED_KEY_RE = /\b(?:sk|pk|rk|ghp|gho|ghs|xox[a-z]|rua|rue|ru_live)_[A-Za-z0-9_-]{8,}/.freeze
+      CARD_RE = /(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)/.freeze
+      HEX_RE = /\b[0-9a-fA-F]{32,}\b/.freeze
+      BASE64_RE = /(?<![A-Za-z0-9+_=-])[A-Za-z0-9+_-]{40,}={0,2}/.freeze
+
+      module_function
+
+      def luhn_valid?(digits)
+        total = 0
+        double = false
+        digits.reverse.each_char do |ch|
+          d = ch.ord - 48
+          if double
+            d *= 2
+            d -= 9 if d > 9
+          end
+          total += d
+          double = !double
+        end
+        (total % 10).zero?
+      end
+
+      # The five pattern rules over one string. Pure.
+      def scrub_string(value)
+        out = value.gsub(JWT_RE, SCRUBBED)
+        out = out.gsub(PREFIXED_KEY_RE, SCRUBBED)
+        out = out.gsub(CARD_RE) do |run|
+          digits = run.delete(" -")
+          digits.length >= 13 && digits.length <= 19 && luhn_valid?(digits) ? SCRUBBED : run
+        end
+        out = out.gsub(HEX_RE, SCRUBBED)
+        out.gsub(BASE64_RE, SCRUBBED)
+      end
+
+      # A flat string map (tags, custom context, device, frame locals):
+      # VALUES pass the pattern rules, KEYS are left alone (a key is a label
+      # the integrator chose).
+      def scrub_string_map(value)
+        return value unless value.is_a?(Hash)
+
+        value.each_with_object({}) do |(name, entry), out|
+          out[name] = entry.is_a?(String) ? scrub_string(entry) : entry
+        end
+      end
+
+      def scrub_breadcrumb(crumb)
+        return crumb unless crumb.is_a?(Hash)
+
+        out = crumb.dup
+        out["message"] = scrub_string(out["message"]) if out["message"].is_a?(String)
+        out["data"] = scrub_string_map(out["data"]) if out["data"].is_a?(Hash)
+        out
+      end
+
+      def scrub_user(user, allowed)
+        return user unless user.is_a?(Hash)
+
+        out = user.dup
+        out["id"] = scrub_string(out["id"]) if out["id"].is_a?(String)
+        REMOVED_USER_FIELDS.each do |field|
+          key = field.sub("user.", "")
+          value = out[key]
+          next unless value.is_a?(String)
+
+          out[key] = allowed.include?(field) ? scrub_string(value) : SCRUBBED
+        end
+        out
+      end
+
+      def scrub_frame(frame)
+        return frame unless frame.is_a?(Hash)
+        return frame unless frame["contextLine"] || frame["preContext"] || frame["postContext"] || frame["vars"]
+
+        out = frame.dup
+        out["contextLine"] = scrub_string(out["contextLine"]) if out["contextLine"].is_a?(String)
+        %w[preContext postContext].each do |key|
+          lines = out[key]
+          out[key] = lines.map { |line| line.is_a?(String) ? scrub_string(line) : line } if lines.is_a?(Array)
+        end
+        out["vars"] = scrub_string_map(out["vars"]) if out["vars"].is_a?(Hash)
+        out
+      end
+
+      # Scrubs one wire event (string-keyed Hash). Returns a new Hash; never
+      # mutates the input.
+      def scrub_event(event, allow_fields = nil)
+        allowed = (allow_fields || []).map { |f| f.to_s.downcase }
+        out = event.dup
+        out["message"] = scrub_string(out["message"]) if out["message"].is_a?(String)
+        out["breadcrumbs"] = out["breadcrumbs"].map { |c| scrub_breadcrumb(c) } if out["breadcrumbs"].is_a?(Array)
+        out["frames"] = out["frames"].map { |f| scrub_frame(f) } if out["frames"].is_a?(Array)
+        %w[tags context device].each do |key|
+          out[key] = scrub_string_map(out[key]) if out[key].is_a?(Hash)
+        end
+        out["user"] = scrub_user(out["user"], allowed) if out["user"].is_a?(Hash)
+        request = out["request"]
+        if request.is_a?(Hash)
+          request = request.dup
+          request["path"] = scrub_string(request["path"]) if request["path"].is_a?(String)
+          request["route"] = scrub_string(request["route"]) if request["route"].is_a?(String)
+          headers = request["headers"]
+          if headers.is_a?(Hash)
+            request["headers"] = headers.each_with_object({}) do |(name, value), scrubbed|
+              lower = name.to_s.downcase
+              scrubbed[name] = if REMOVED_HEADERS.include?(lower) && !allowed.include?(lower)
+                                 SCRUBBED
+                               else
+                                 value.is_a?(String) ? scrub_string(value) : value
+                               end
+            end
+          end
+          out["request"] = request
+        end
+        out
+      end
+    end
+  end
+end
