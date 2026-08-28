@@ -2,7 +2,7 @@
 
 module Realuptime
   module Errors
-    # PII scrub-by-default, client-side (docs/errors-plan.md, "PII
+    # PII scrub-by-default, client-side (the internal-docs repo's errors-plan.md, "PII
     # scrub-by-default, specified"). A byte-for-byte port of
     # packages/errors-js/scrub.ts and packages/errors-py/realuptime_errors.py's
     # scrub half; the shared vectors (scrub-vectors.json, vendored into this
@@ -30,12 +30,40 @@ module Realuptime
       REMOVED_USER_FIELDS = %w[user.email user.username].freeze
 
       JWT_RE = /\beyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\b/.freeze
-      PREFIXED_KEY_RE = /\b(?:sk|pk|rk|ghp|gho|ghs|xox[a-z]|rua|rue|ru_live)_[A-Za-z0-9_-]{8,}/.freeze
+      PREFIXED_KEY_RE = /\b(?:sk|pk|rk|ghp|gho|ghs|xox[a-z]|rua|rue|ru_live|whsec)_[A-Za-z0-9_-]{8,}/.freeze
+      AWS_KEY_RE = /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/.freeze
       CARD_RE = /(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)/.freeze
       HEX_RE = /\b[0-9a-fA-F]{32,}\b/.freeze
       BASE64_RE = /(?<![A-Za-z0-9+_=-])[A-Za-z0-9+_-]{40,}={0,2}/.freeze
+      URL_CREDS_RE = %r{\b([a-zA-Z][a-zA-Z0-9+.-]*)://[^\s/@]+:[^\s/@]+@}.freeze
+
+      # Key-name denylist (REA-474): see packages/errors-js/scrub.ts's module
+      # doc for the full rationale. Matched against whole camelCase/
+      # snake_case segments (and contiguous joins of them) so "tokenizer"
+      # and "authentic" never match "token" / "auth".
+      KEY_DENYLIST = %w[
+        password passwd secret token apikey auth authorization
+        credential credentials privatekey accesskey session
+      ].freeze
 
       module_function
+
+      def key_segments(key)
+        spaced = key.to_s.gsub(/([a-z0-9])([A-Z])/, '\1_\2')
+        spaced.split(/[^a-zA-Z0-9]+/).reject(&:empty?).map(&:downcase)
+      end
+
+      def key_denylisted?(key)
+        segments = key_segments(key)
+        segments.each_index do |i|
+          joined = +""
+          (i...segments.length).each do |j|
+            joined << segments[j]
+            return true if KEY_DENYLIST.include?(joined)
+          end
+        end
+        false
+      end
 
       def luhn_valid?(digits)
         total = 0
@@ -52,10 +80,12 @@ module Realuptime
         (total % 10).zero?
       end
 
-      # The five pattern rules over one string. Pure.
+      # The pattern rules over one string, in the shared order. Pure.
       def scrub_string(value)
-        out = value.gsub(JWT_RE, SCRUBBED)
+        out = value.gsub(URL_CREDS_RE) { "#{Regexp.last_match(1)}://#{SCRUBBED}@" }
+        out = out.gsub(JWT_RE, SCRUBBED)
         out = out.gsub(PREFIXED_KEY_RE, SCRUBBED)
+        out = out.gsub(AWS_KEY_RE, SCRUBBED)
         out = out.gsub(CARD_RE) do |run|
           digits = run.delete(" -")
           digits.length >= 13 && digits.length <= 19 && luhn_valid?(digits) ? SCRUBBED : run
@@ -64,14 +94,21 @@ module Realuptime
         out.gsub(BASE64_RE, SCRUBBED)
       end
 
-      # A flat string map (tags, custom context, device, frame locals):
-      # VALUES pass the pattern rules, KEYS are left alone (a key is a label
-      # the integrator chose).
+      # A flat string map (tags, custom context, device, frame locals): a
+      # key denylisted by name (REA-474) replaces the value whole,
+      # regardless of shape; otherwise the value passes the pattern rules.
+      # Keys themselves are always left alone.
       def scrub_string_map(value)
         return value unless value.is_a?(Hash)
 
         value.each_with_object({}) do |(name, entry), out|
-          out[name] = entry.is_a?(String) ? scrub_string(entry) : entry
+          out[name] = if !entry.is_a?(String)
+                        entry
+                      elsif key_denylisted?(name)
+                        SCRUBBED
+                      else
+                        scrub_string(entry)
+                      end
         end
       end
 
@@ -134,7 +171,7 @@ module Realuptime
           if headers.is_a?(Hash)
             request["headers"] = headers.each_with_object({}) do |(name, value), scrubbed|
               lower = name.to_s.downcase
-              scrubbed[name] = if REMOVED_HEADERS.include?(lower) && !allowed.include?(lower)
+              scrubbed[name] = if (REMOVED_HEADERS.include?(lower) || key_denylisted?(lower)) && !allowed.include?(lower)
                                  SCRUBBED
                                else
                                  value.is_a?(String) ? scrub_string(value) : value
