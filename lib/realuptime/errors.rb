@@ -3,9 +3,9 @@
 # realuptime-errors: zero-dependency Ruby error tracking SDK for RealUptime
 # Errors (the internal-docs repo's errors-plan.md, Linear REA-255).
 #
-# One wire contract with the JS and Python SDKs (packages/errors-js/types.ts);
+# One wire contract with the JS and Python SDKs (errors-js/types.ts);
 # the shared scrub vectors (scrub-vectors.json, vendored into this gem and
-# asserted byte-identical to packages/errors-js/scrub-vectors.json) pin all
+# asserted byte-identical to errors-js/scrub-vectors.json) pin all
 # three SDKs and the server's second net to identical scrubbing. Ruby
 # standard library only (json, net/http, uri, time, rbconfig): this code
 # runs inside customer processes and its dependency graph must be
@@ -18,7 +18,7 @@
 # Usage:
 #
 #   require "realuptime/errors"
-#   Realuptime::Errors.init(dsn: "https://realuptime.io/api/errors/v1/ingest/rue_...",
+#   Realuptime::Errors.init(dsn: "https://ingest.realuptime.io/api/errors/v1/ingest/rue_...",
 #                           release: "v2.4.1", environment: "production")
 #   ...
 #   Realuptime::Errors.capture_exception(error)
@@ -33,7 +33,7 @@ require "realuptime/errors/scrub"
 
 module Realuptime
   module Errors
-    # Mirrored from packages/errors-js/types.ts and pinned by
+    # Mirrored from errors-js/types.ts and pinned by
     # test/wire_contract_test.rb.
     MAX_EVENTS_PER_BATCH = 50
     MAX_MESSAGE_LENGTH = 4000
@@ -43,7 +43,7 @@ module Realuptime
     MAX_BREADCRUMB_DATA_ENTRIES = 10
     BUFFER_MAX = 200
 
-    # v2 caps (REA-182), mirrored from packages/errors-js/types.ts.
+    # v2 caps (REA-182), mirrored from errors-js/types.ts.
     MAX_TAGS_PER_EVENT = 20
     MAX_CONTEXT_ENTRIES = 20
     MAX_CONTEXT_KEY_LENGTH = 64

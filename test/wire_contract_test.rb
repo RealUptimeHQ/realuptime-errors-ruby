@@ -3,7 +3,7 @@
 require_relative "test_helper"
 
 # Pins the wire contract mirror and the stdlib-only dependency discipline,
-# the apps/agent/wire-contract.test.ts convention (as packages/errors-py/
+# the apps/agent/wire-contract.test.ts convention (as errors-py/
 # tests/test_wire_contract.py ports it to Python).
 class WireContractTest < Minitest::Test
   include SdkTestSupport

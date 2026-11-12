@@ -13,7 +13,7 @@ module Realuptime
     #   gem "realuptime-errors", require: "realuptime/errors/rails"
     #
     #   # config/initializers/realuptime_errors.rb (or ENV REALUPTIME_ERRORS_DSN)
-    #   Rails.application.config.realuptime_errors.dsn = "https://realuptime.io/api/errors/v1/ingest/rue_..."
+    #   Rails.application.config.realuptime_errors.dsn = "https://ingest.realuptime.io/api/errors/v1/ingest/rue_..."
     #   Rails.application.config.realuptime_errors.release = ENV["GIT_SHA"]
     #
     # What the Railtie installs, all through the ONE capture/scrub/transport

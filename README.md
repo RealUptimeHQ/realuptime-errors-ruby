@@ -3,7 +3,7 @@
 Zero-dependency error tracking SDK for Ruby, with Rails, Rack and Sidekiq
 integrations: part of [RealUptime Errors](https://realuptime.io/error-tracking).
 
-This is a **mirror**. It is published from `packages/errors-ruby` in the
+This is a **mirror**. It is published from `errors-ruby` in the
 [realuptime monorepo](https://github.com/RealUptimeHQ/realuptime) by
 `scripts/publish-sdk-mirrors.mjs` and is not edited directly; open issues
 and PRs against this repo, but expect source changes to land here after
@@ -37,7 +37,7 @@ Realuptime::Errors.init(
 Realuptime::Errors.capture_exception(some_error)
 ```
 
-Rails: `gem "realuptime-errors", git: "...", require: "realuptime/errors/rails"`,
+Rails: `gem "realuptime-errors", require: "realuptime/errors/rails"`,
 then set `Rails.application.config.realuptime_errors.dsn` (or
 `ENV["REALUPTIME_ERRORS_DSN"]`); the Railtie installs the Rack middleware
 and the ActiveJob hook.
@@ -91,7 +91,7 @@ ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].each { |f| require "./#{f}" }'
 
 ## Version
 
-This mirror tracks SDK_VERSION `0.1.0` in `lib/realuptime/errors/version.rb`,
+This mirror tracks SDK_VERSION `0.1.1` in `lib/realuptime/errors/version.rb`,
 the string every event actually carries on the wire.
 
 ## License

@@ -4,9 +4,9 @@ module Realuptime
   module Errors
     # PII scrub-by-default, client-side (the internal-docs repo's errors-plan.md, "PII
     # scrub-by-default, specified"). A byte-for-byte port of
-    # packages/errors-js/scrub.ts and packages/errors-py/realuptime_errors.py's
+    # errors-js/scrub.ts and errors-py/realuptime_errors.py's
     # scrub half; the shared vectors (scrub-vectors.json, vendored into this
-    # gem and asserted byte-identical to packages/errors-js/scrub-vectors.json
+    # gem and asserted byte-identical to errors-js/scrub-vectors.json
     # by test/vendored_vectors_test.rb) pin all four implementations -- JS,
     # Python, this one, and the server's second net -- to identical output.
     #
@@ -35,9 +35,9 @@ module Realuptime
       CARD_RE = /(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)/.freeze
       HEX_RE = /\b[0-9a-fA-F]{32,}\b/.freeze
       BASE64_RE = /(?<![A-Za-z0-9+_=-])[A-Za-z0-9+_-]{40,}={0,2}/.freeze
-      URL_CREDS_RE = %r{\b([a-zA-Z][a-zA-Z0-9+.-]*)://[^\s/@]+:[^\s/@]+@}.freeze
+      URL_CREDS_RE = %r{\b([a-zA-Z][a-zA-Z0-9+.-]{0,31})://[^\s/@:]+:[^\s/@]+@}.freeze
 
-      # Key-name denylist (REA-474): see packages/errors-js/scrub.ts's module
+      # Key-name denylist (REA-474): see errors-js/scrub.ts's module
       # doc for the full rationale. Matched against whole camelCase/
       # snake_case segments (and contiguous joins of them) so "tokenizer"
       # and "authentic" never match "token" / "auth".

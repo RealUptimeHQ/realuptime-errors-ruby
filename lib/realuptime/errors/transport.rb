@@ -7,7 +7,7 @@ require "time"
 
 module Realuptime
   module Errors
-    # Batched, buffered, backed-off delivery. Mirrors packages/errors-js/
+    # Batched, buffered, backed-off delivery. Mirrors errors-js/
     # client.ts and the Python SDK's _Transport: over_quota pauses until the
     # reset instant, key_revoked disables for the process lifetime,
     # transient failures back off exponentially (5s doubling to 300s), and

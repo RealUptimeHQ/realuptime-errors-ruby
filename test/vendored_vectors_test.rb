@@ -13,13 +13,13 @@ class VendoredVectorsTest < Minitest::Test
   CANONICAL = File.expand_path("../../errors-js/scrub-vectors.json", __dir__)
 
   def test_vendored_copy_is_byte_identical_to_the_canonical_vectors
-    skip "canonical packages/errors-js/scrub-vectors.json not present (standalone gem checkout)" unless File.exist?(CANONICAL)
+    skip "canonical errors-js/scrub-vectors.json not present (standalone gem checkout)" unless File.exist?(CANONICAL)
 
     vendored = File.binread(VENDORED)
     canonical = File.binread(CANONICAL)
-    assert_equal canonical.bytesize, vendored.bytesize, "scrub-vectors.json size differs; re-copy from packages/errors-js"
-    assert vendored == canonical, "packages/errors-ruby/scrub-vectors.json differs from packages/errors-js/scrub-vectors.json; " \
-                                  "run: cp packages/errors-js/scrub-vectors.json packages/errors-ruby/scrub-vectors.json"
+    assert_equal canonical.bytesize, vendored.bytesize, "scrub-vectors.json size differs; re-copy from errors-js"
+    assert vendored == canonical, "errors-ruby/scrub-vectors.json differs from errors-js/scrub-vectors.json; " \
+                                  "run: cp errors-js/scrub-vectors.json errors-ruby/scrub-vectors.json"
   end
 
   def test_vendored_copy_is_the_v2_vector_set

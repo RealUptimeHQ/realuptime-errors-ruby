@@ -7,7 +7,7 @@ require_relative "test_helper"
 # Python SDK, this SDK and the server's second net; this suite must never
 # grow expectations of its own. The copy it reads is the one vendored into
 # the gem (scrub-vectors.json at the gem root); vendored_vectors_test.rb
-# asserts that copy is byte-identical to packages/errors-js/scrub-vectors.json.
+# asserts that copy is byte-identical to errors-js/scrub-vectors.json.
 class ScrubVectorsTest < Minitest::Test
   VECTORS_PATH = File.expand_path("../scrub-vectors.json", __dir__)
 
@@ -53,5 +53,16 @@ class ScrubVectorsTest < Minitest::Test
 
   def test_scrub_string_is_exposed_for_direct_use
     assert_equal "card [scrubbed] ok", Realuptime::Errors::Scrub.scrub_string("card 4242424242424242 ok")
+  end
+end
+
+# Error messages often carry user input, and this runs in the customer's own
+# process: a pattern that backtracks on it stalls their app.
+class ScrubLinearTimeTest < Minitest::Test
+  def test_hostile_scheme_and_colon_run_is_fast
+    hostile = ("a." * 300) + "://" + (":" * 2000)
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Realuptime::Errors::Scrub.scrub_string(hostile)
+    assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, :<, 0.25
   end
 end
