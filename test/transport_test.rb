@@ -77,7 +77,7 @@ class TransportTest < Minitest::Test
     @clock.now = Time.utc(1970, 1, 12, 14, 0, 1).to_f
     Realuptime::Errors.flush
     assert_equal 2, @server.calls.length
-    assert_equal 1, @logs.count { |l| l.include?("quota") }
+    assert_equal 1, (@logs.count { |l| l.include?("quota") })
   end
 
   def test_over_quota_flag_on_a_2xx_pauses_too
@@ -99,7 +99,7 @@ class TransportTest < Minitest::Test
     assert_equal 1, @server.calls.length
     assert Realuptime::Errors.transport.disabled?
     assert_equal 0, Realuptime::Errors.transport.buffered_count
-    assert_equal 1, @logs.count { |l| l.include?("revoked") }
+    assert_equal 1, (@logs.count { |l| l.include?("revoked") })
   end
 
   def test_malformed_400_drops_the_batch_keeps_the_drop_count_and_continues
@@ -117,7 +117,7 @@ class TransportTest < Minitest::Test
     assert_equal 3, @server.batches.fetch(2)["droppedClient"]
     assert_equal 0, @server.batches.fetch(3)["droppedClient"]
     assert_equal 0, Realuptime::Errors.transport.buffered_count
-    assert_equal 1, @logs.count { |l| l.include?("malformed") }
+    assert_equal 1, (@logs.count { |l| l.include?("malformed") })
   end
 
   def test_other_5xx_backs_off_without_dropping

@@ -49,7 +49,6 @@ class SidekiqIntegrationTest < Minitest::Test
     chain = []
     shutdown = []
     config = Object.new
-    config.define_singleton_method(:server_middleware) { |&block| block.call(Struct.new(:added).new(chain)) }
     config.define_singleton_method(:on) { |event, &block| shutdown << [event, block] }
     fake_sidekiq = Module.new
     fake_sidekiq.define_singleton_method(:configure_server) { |&block| block.call(config) }

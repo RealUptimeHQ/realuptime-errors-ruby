@@ -34,6 +34,22 @@ module Realuptime
         raise
       end
 
+      # Method + path from a Rack env, nothing else. Shared with the Rails
+      # and Sidekiq integrations so every entry point captures identically.
+      def self.request_context(env)
+        return nil unless env.is_a?(Hash)
+
+        request = {}
+        method = env["REQUEST_METHOD"]
+        request["method"] = method.to_s if method
+        path = env["PATH_INFO"]
+        path = "#{env["SCRIPT_NAME"]}#{path}" if env["SCRIPT_NAME"] && !env["SCRIPT_NAME"].to_s.empty?
+        request["path"] = path.to_s if path
+        request.empty? ? nil : request
+      rescue StandardError
+        nil
+      end
+
       private
 
       def report(exc, env)
@@ -51,22 +67,6 @@ module Realuptime
         false
       rescue StandardError
         false
-      end
-
-      # Method + path from a Rack env, nothing else. Shared with the Rails
-      # and Sidekiq integrations so every entry point captures identically.
-      def self.request_context(env)
-        return nil unless env.is_a?(Hash)
-
-        request = {}
-        method = env["REQUEST_METHOD"]
-        request["method"] = method.to_s if method
-        path = env["PATH_INFO"]
-        path = "#{env["SCRIPT_NAME"]}#{path}" if env["SCRIPT_NAME"] && !env["SCRIPT_NAME"].to_s.empty?
-        request["path"] = path.to_s if path
-        request.empty? ? nil : request
-      rescue StandardError
-        nil
       end
     end
   end

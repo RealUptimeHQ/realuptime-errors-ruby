@@ -25,6 +25,6 @@ class VendoredVectorsTest < Minitest::Test
   def test_vendored_copy_is_the_v2_vector_set
     data = JSON.parse(File.read(VENDORED))
     assert_equal 2, data["version"]
-    assert data["vectors"].any? { |v| v["name"].start_with?("v2 ") }
+    assert(data["vectors"].any? { |v| v["name"].start_with?("v2 ") })
   end
 end
