@@ -44,7 +44,12 @@ module Realuptime
       KEY_DENYLIST = %w[
         password passwd secret token apikey auth authorization
         credential credentials privatekey accesskey session
+        pw pwd passphrase sig signature sid otp
       ].freeze
+
+      # name=value pairs (REA-1260): the value is scrubbed when the name hits
+      # KEY_DENYLIST. The value class spells out JavaScript's \s.
+      KEY_VALUE_RE = /([A-Za-z0-9_.\[\]-]{1,64})=([^&#;,"'<>\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+)/.freeze
 
       module_function
 
@@ -91,7 +96,11 @@ module Realuptime
           digits.length >= 13 && digits.length <= 19 && luhn_valid?(digits) ? SCRUBBED : run
         end
         out = out.gsub(HEX_RE, SCRUBBED)
-        out.gsub(BASE64_RE, SCRUBBED)
+        out = out.gsub(BASE64_RE, SCRUBBED)
+        out.gsub(KEY_VALUE_RE) do |pair|
+          key = Regexp.last_match(1)
+          key_denylisted?(key) ? "#{key}=#{SCRUBBED}" : pair
+        end
       end
 
       # A flat string map (tags, custom context, device, frame locals): a
