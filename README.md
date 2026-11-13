@@ -91,7 +91,7 @@ ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].each { |f| require "./#{f}" }'
 
 ## Version
 
-This mirror tracks SDK_VERSION `0.1.1` in `lib/realuptime/errors/version.rb`,
+This mirror tracks SDK_VERSION `0.1.2` in `lib/realuptime/errors/version.rb`,
 the string every event actually carries on the wire.
 
 ## License

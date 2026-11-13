@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 (2026-11-13)
+
+
+### Bug Fixes
+
+* **errors:** scrub credential values in name=value text and query strings (REA-1260)
+
 ## 0.1.1 (2026-09-25)
 
 ### Features

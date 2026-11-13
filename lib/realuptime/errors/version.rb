@@ -10,6 +10,6 @@ module Realuptime
     # ingest.realuptime.io host change (REA-473) that landed after 0.1.0
     # shipped. No feature was added, so this is a patch bump, not a minor
     # one.
-    SDK_VERSION = "0.1.1" # x-release-please-version
+    SDK_VERSION = "0.1.2" # x-release-please-version
   end
 end
